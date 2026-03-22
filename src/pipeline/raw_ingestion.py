@@ -58,13 +58,13 @@ def run_raw_ingestion(excel_path: str, logs_dir: str = "logs") -> RawIngestionOu
     write_raw_parquet(
         spark=spark,
         df=res_clientes.valid,
-        s3_path=SETTINGS.raw_clientes,
+        path=SETTINGS.raw_clientes,
         data_processamento=data_processamento,
     )
     write_raw_parquet(
         spark=spark,
         df=res_enderecos.valid,
-        s3_path=SETTINGS.raw_enderecos,
+        path=SETTINGS.raw_enderecos,
         data_processamento=data_processamento,
     )
 
