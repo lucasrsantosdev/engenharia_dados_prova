@@ -1,8 +1,8 @@
-# stage.py
+from pyspark.sql import Window
+from pyspark.sql.functions import row_number, col, desc, current_timestamp
+
 from src.utils.spark import build_spark
-from src.utils.config import SETTINGS
-import logging
-import os
+from config_aws import SETTINGS
 
 # Configura logging simples
 logging.basicConfig(level=logging.INFO)
