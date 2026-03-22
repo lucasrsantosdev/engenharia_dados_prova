@@ -189,3 +189,10 @@ Saída:
 * Preparado para produção
 
 ---
+## Observação sobre S3
+
+O upload para o S3 foi implementado via boto3 e validado em nível de código.
+Durante a execução, foi retornado erro de permissão (AccessDenied - s3:PutObject),
+indicando que o usuário IAM fornecido não possui permissão de escrita no bucket.
+
+O pipeline está preparado para execução completa em ambiente com permissões adequadas.
