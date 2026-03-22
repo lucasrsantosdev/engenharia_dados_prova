@@ -6,19 +6,30 @@ def build_spark(app_name: str, **kwargs) -> SparkSession:
         SparkSession.builder
         .appName(app_name)
         .config("spark.sql.execution.arrow.pyspark.enabled", "false")
+
+        # 🔥 ESSENCIAL PRA S3
+        .config(
+            "spark.jars.packages",
+            "org.apache.hadoop:hadoop-aws:3.3.4"
+        )
     )
 
-    # 🔥 CONFIG S3 (ESSENCIAL)
+    # =========================
+    # CONFIG S3
+    # =========================
     if kwargs.get("aws_access_key_id"):
         builder = (
             builder
             .config("spark.hadoop.fs.s3a.access.key", kwargs["aws_access_key_id"])
             .config("spark.hadoop.fs.s3a.secret.key", kwargs["aws_secret_access_key"])
-            .config("spark.hadoop.fs.s3a.endpoint", "s3.amazonaws.com")
+            .config("spark.hadoop.fs.s3a.endpoint", "s3.sa-east-1.amazonaws.com")
             .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
+            .config("spark.hadoop.fs.s3a.path.style.access", "true")
         )
 
-    # 🔧 Windows fix (mantém)
+    # =========================
+    # WINDOWS FIX
+    # =========================
     builder = (
         builder
         .config("spark.hadoop.fs.file.impl", "org.apache.hadoop.fs.LocalFileSystem")
