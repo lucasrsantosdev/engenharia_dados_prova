@@ -61,8 +61,11 @@ def write_raw_parquet(spark: SparkSession, df, path: str, data_processamento: st
         # transforma caminho local em chave S3
         relative_path = file_path.replace("\\", "/").split("data/")[-1]
 
-        s3_key = f"{SETTINGS.user_folder}/{relative_path}"
-
+    # remove duplicação se já tiver user_folder
+        if relative_path.startswith(f"{SETTINGS.user_folder}/"):
+            s3_key = relative_path
+        else:
+            s3_key = f"{SETTINGS.user_folder}/{relative_path}"
         s3.upload_file(file_path, s3_key)
 
         print(f"[S3 OK] Upload realizado: s3://{SETTINGS.s3_bucket}/{s3_key}")
