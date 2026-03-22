@@ -2,7 +2,7 @@ from pyspark.sql import SparkSession
 import json
 import os
 
-from config import SETTINGS
+from config_aws import SETTINGS
 from src.utils.s3_client import S3Client
 
 

@@ -4,12 +4,12 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-from config import SETTINGS
+from config_aws import SETTINGS
 from src.ingestion.excel_reader import read_excel
 from src.ingestion.raw_writer import write_raw_parquet, write_validation_log
 from src.ingestion.validators import validar_clientes, validar_enderecos
 from src.utils.logger import log_step, setup_logging
-from src.utils.spark_local import build_spark
+from utils.spark import build_spark
 
 
 @dataclass(frozen=True)

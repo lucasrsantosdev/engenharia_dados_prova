@@ -46,7 +46,7 @@ class Settings:
     @property
     def base(self) -> str:
         if self.storage_mode.lower() == "s3":
-            return f"s3a://{self.s3_bucket}/{self.user_folder}"
+            return f"s3://{self.s3_bucket}/{self.user_folder}"
 
         # 🔥 IMPORTANTE: garante path absoluto no Windows
         return os.path.abspath(self.base_path)
