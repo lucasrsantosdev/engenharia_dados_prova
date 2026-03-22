@@ -21,7 +21,7 @@ def write_raw_parquet(spark: SparkSession, df, path: str, data_processamento: st
     # =========================
     # GARANTE QUE PATH É LOCAL
     # =========================
-    if path.startswith("s3://"):
+    if path.startswith(("s3://", "s3a://")):
         # converte para estrutura local equivalente
         path = path.replace(
             f"s3://{SETTINGS.s3_bucket}/{SETTINGS.user_folder}/",
