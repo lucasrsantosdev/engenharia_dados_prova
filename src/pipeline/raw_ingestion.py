@@ -89,3 +89,9 @@ def run_raw_ingestion(excel_path: str, logs_dir: str = "logs") -> RawIngestionOu
         enderecos_log_path=enderecos_log,
     )
 
+if __name__ == "__main__":
+    output = run_raw_ingestion(
+        excel_path="dados_entrada.xlsx"
+    )
+
+    print(output)
