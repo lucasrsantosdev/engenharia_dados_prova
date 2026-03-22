@@ -1,74 +1,53 @@
-from pyspark.sql import Window
-from pyspark.sql.functions import row_number, col, desc, current_timestamp
-
+# stage.py
 from src.utils.spark import build_spark
-from config_aws import SETTINGS
+from src.utils.config import SETTINGS
+import logging
+import os
 
+# Configura logging simples
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 def process_clientes(spark):
-    df = spark.read.parquet(SETTINGS.raw_clientes)
-
-    window = Window.partitionBy("id_cliente").orderBy(desc("data_evento"))
-
-    df = (
-        df
-        .withColumn("rn", row_number().over(window))
-        .filter(col("rn") == 1)
-        .drop("rn")
-        .withColumn("data_atualizacao", current_timestamp())
-    )
-
+    path_clientes = SETTINGS.raw_clientes
+    if not os.path.exists(path_clientes):
+        raise FileNotFoundError(f"Diretório de clientes não encontrado: {path_clientes}")
+    
+    logger.info(f"🚀 Lendo clientes de: {path_clientes}")
+    df = spark.read.parquet(path_clientes)
     return df
-
 
 def process_enderecos(spark):
-    df = spark.read.parquet(SETTINGS.raw_enderecos)
+    path_enderecos = SETTINGS.raw_enderecos
+    if not os.path.exists(path_enderecos):
+        raise FileNotFoundError(f"Diretório de endereços não encontrado: {path_enderecos}")
 
-    window = Window.partitionBy("id_endereco").orderBy(desc("data_evento"))
-
-    df = (
-        df
-        .withColumn("rn", row_number().over(window))
-        .filter(col("rn") == 1)
-        .drop("rn")
-        .withColumn("data_atualizacao", current_timestamp())
-    )
-
+    logger.info(f"🚀 Lendo endereços de: {path_enderecos}")
+    df = spark.read.parquet(path_enderecos)
     return df
 
-
-def write_stage(df, path: str):
-    """
-    Escrita idempotente (SCD Type 1 simplificado)
-    """
-
-    (
-        df
-        .write
-        .mode("overwrite")  # 🔥 garante idempotência
-        .parquet(path)
-    )
-
-    print(f"[STAGE OK] Dados salvos em: {path}")
-
-
 def run_stage():
-    spark = build_spark("engenharia_dados_prova_stage")
+    spark = build_spark()
+    logger.info("SparkSession criada com sucesso")
 
-    print("🚀 Processando clientes...")
+    # Processamento clientes
     clientes = process_clientes(spark)
+    logger.info(f"Clientes lidos: {clientes.count()} registros")
 
-    print("🚀 Processando endereços...")
+    # Processamento endereços
     enderecos = process_enderecos(spark)
+    logger.info(f"Endereços lidos: {enderecos.count()} registros")
 
-    print("💾 Salvando stage clientes...")
-    write_stage(clientes, SETTINGS.stage_clientes)
+    # Exemplo: salvar stage local
+    stage_clientes_path = SETTINGS.stage_clientes
+    stage_enderecos_path = SETTINGS.stage_enderecos
 
-    print("💾 Salvando stage endereços...")
-    write_stage(enderecos, SETTINGS.stage_enderecos)
+    os.makedirs(stage_clientes_path, exist_ok=True)
+    os.makedirs(stage_enderecos_path, exist_ok=True)
 
-    print("✅ Stage finalizada com sucesso!")
-
+    clientes.write.mode("overwrite").parquet(stage_clientes_path)
+    enderecos.write.mode("overwrite").parquet(stage_enderecos_path)
+    logger.info("Stage finalizado com sucesso")
 
 if __name__ == "__main__":
     run_stage()
