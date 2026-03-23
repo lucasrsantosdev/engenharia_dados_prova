@@ -196,3 +196,54 @@ Durante a execução, foi retornado erro de permissão (AccessDenied - s3:PutObj
 indicando que o usuário IAM fornecido não possui permissão de escrita no bucket.
 
 O pipeline está preparado para execução completa em ambiente com permissões adequadas.
+
+[dados_entrada.xlsx]
+      │
+      ▼
+      [1️⃣ RAW INGESTION (analytics.py / raw_ingestion_local.py)]
+- Valida CPF, CEP, e-mail, status, datas
+- Rejeita registros inválidos (log JSONL)
+- Saída local em Parquet:
+    data/raw/clientes/data_processamento=YYYY-MM-DD/part-00000.parquet
+    data/raw/enderecos/data_processamento=YYYY-MM-DD/part-00000.parquet
+      │
+      ▼
+[2️⃣ UPLOAD PARA S3 (raw_to_s3.py)]
+- Envia Parquet local para:
+    s3://bkt-dev1-data-avaliacoes/{nome_sobrenome}/raw/clientes/data_processamento=YYYY-MM-DD/
+    s3://bkt-dev1-data-avaliacoes/{nome_sobrenome}/raw/enderecos/data_processamento=YYYY-MM-DD/
+- Mantém compressão snappy e particionamento
+      │
+      ▼
+[3️⃣ STAGE (stage_local.py)]
+- Spark + Delta Lake
+- SCD Type 1 (sobrescreve últimos eventos)
+- Coluna data_atualizacao para rastreabilidade
+- Saída local em Delta:
+    data/stage/clientes/_delta_log/
+    data/stage/enderecos/_delta_log/
+      │
+      ▼
+[4️⃣ ANALYTICS (analytics.py)]
+- Filtra clientes ativos
+- LEFT JOIN clientes × endereços
+- Múltiplos endereços por cliente
+- Coluna idade calculada
+- Saída Parquet:
+    data/analytics/clientes/estado=XX/
+      │
+      ▼
+[5️⃣ GLUE CRAWLER (glue_crawler.py)]
+- Cria crawler programaticamente no Glue
+- Aponta para:
+    s3://bkt-dev1-data-avaliacoes/{nome_sobrenome}/analytics/clientes/
+- Prepara catálogo de dados para Athena
+      │
+      ▼
+[6️⃣ ATHENA QUERY (athena_query.py)]
+- Executa query:
+    SELECT * FROM clientes
+- Salva resultado CSV local:
+    resultado_athena.csv
+- S3 Athena Results (opcional):
+    s3://bkt-dev1-data-avaliacoes/{nome_sobrenome}/athena_results/
