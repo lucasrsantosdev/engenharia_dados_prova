@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-from config_aws import SETTINGS
+from config import SETTINGS
 from src.ingestion.excel_reader import read_excel
 from src.ingestion.raw_writer import write_raw_parquet, write_validation_log
 from src.ingestion.validators import validar_clientes, validar_enderecos

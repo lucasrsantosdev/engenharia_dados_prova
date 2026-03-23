@@ -1,10 +1,10 @@
+# c/utils/spark.py
 from pyspark.sql import SparkSession
 
-
-def build_spark(app_name: str = "engenharia_dados_prova_stage",
-                aws_access_key_id: str | None = None,
-                aws_secret_access_key: str | None = None,
-                aws_region: str | None = None) -> SparkSession:
+def build_spark(app_name="engenharia_dados_prova_stage",
+                aws_access_key_id=None,
+                aws_secret_access_key=None,
+                aws_region=None):
     """
     Cria uma SparkSession configurada para rodar localmente ou integrada com S3.
     - Se não passar credenciais AWS, roda local.
@@ -14,13 +14,12 @@ def build_spark(app_name: str = "engenharia_dados_prova_stage",
     builder = (
         SparkSession.builder
         .appName(app_name)
-        .config("spark.sql.execution.arrow.pyspark.enabled", "false")
-        .config("spark.sql.warehouse.dir", "C:/tmp")  # temp dir local
+        .config("spark.sql.warehouse.dir", "C:/tmp")  # pasta temporária local
         .master("local[*]")
     )
 
     # =========================
-    # CONFIG S3 (se credenciais forem fornecidas)
+    # Configura S3 se credenciais forem fornecidas
     # =========================
     if aws_access_key_id and aws_secret_access_key and aws_region:
         builder = (
@@ -34,7 +33,7 @@ def build_spark(app_name: str = "engenharia_dados_prova_stage",
         )
 
     # =========================
-    # FIX para Windows
+    # Fix para Windows
     # =========================
     builder = (
         builder

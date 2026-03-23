@@ -1,77 +1,59 @@
 from pyspark.sql import SparkSession
+from pyspark.sql.functions import lit
 import json
 import os
 
-from config_aws import SETTINGS
-from src.utils.s3_client import S3Client
+from config import SETTINGS
 
 
 def write_raw_parquet(spark: SparkSession, df, path: str, data_processamento: str):
     """
     Escreve DataFrame em Parquet.
 
-    Estratégia:
-    - Sempre salva LOCAL
-    - Depois faz upload para S3 via boto3
+    - LOCAL → usa pandas (sem Spark / sem Hadoop)
+    - S3 → usa Spark (particionado)
     """
 
     if df is None or df.empty:
         return
 
     # =========================
-    # GARANTE QUE PATH É LOCAL
+    # MODO LOCAL (SEM SPARK)
     # =========================
-    if path.startswith(("s3://", "s3a://")):
-        # normaliza s3a -> s3
-        path = path.replace("s3a://", "s3://")
+    if SETTINGS.storage_mode == "local":
+        df["data_processamento"] = data_processamento
 
-        # remove prefixo do bucket e user_folder
-        prefix = f"s3://{SETTINGS.s3_bucket}/{SETTINGS.user_folder}/"
-        if path.startswith(prefix):
-            path = path.replace(prefix, "data/")
-        else:
-            # fallback (caso venha diferente)
-            path = path.replace(f"s3://{SETTINGS.s3_bucket}/", "data/")
+        output_path = os.path.join(
+            path,
+            f"data_processamento={data_processamento}"
+        )
+
+        os.makedirs(output_path, exist_ok=True)
+
+        file_path = os.path.join(output_path, "data.parquet")
+
+        df.to_parquet(file_path, index=False)
+
+        print(f"[OK] Dados salvos em: {file_path}")
+        return
 
     # =========================
-    # SALVA LOCAL
+    # MODO S3 (SPARK)
     # =========================
-    df = df.copy()
-    df["data_processamento"] = data_processamento
+    spark_df = spark.createDataFrame(df)
 
-    output_path = os.path.join(
-        path,
-        f"data_processamento={data_processamento}"
+    spark_df = spark_df.withColumn(
+        "data_processamento",
+        lit(data_processamento)
     )
 
-    os.makedirs(output_path, exist_ok=True)
-
-    file_path = os.path.join(output_path, "data.parquet")
-
-    df.to_parquet(file_path, index=False)
-
-    print(f"[OK] Dados salvos localmente: {file_path}")
-
-    # =========================
-    # UPLOAD PARA S3
-    # =========================
-    try:
-        s3 = S3Client()
-
-        # transforma caminho local em chave S3
-        relative_path = file_path.replace("\\", "/").split("data/")[-1]
-
-    # remove duplicação se já tiver user_folder
-        if relative_path.startswith(f"{SETTINGS.user_folder}/"):
-            s3_key = relative_path
-        else:
-            s3_key = f"{SETTINGS.user_folder}/{relative_path}"
-        s3.upload_file(file_path, s3_key)
-
-        print(f"[S3 OK] Upload realizado: s3://{SETTINGS.s3_bucket}/{s3_key}")
-
-    except Exception as e:
-        print(f"[ERRO S3] Falha no upload: {e}")
+    (
+        spark_df
+        .write
+        .mode("append")
+        .partitionBy("data_processamento")
+        .parquet(path)
+    )
 
 
 def write_validation_log(errors, file_path: str):

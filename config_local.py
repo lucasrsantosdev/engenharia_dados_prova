@@ -46,7 +46,7 @@ class Settings:
     @property
     def base(self) -> str:
         if self.storage_mode.lower() == "s3":
-            return f"s3a://{self.s3_bucket}/{self.user_folder}"
+            return f"s3://{self.s3_bucket}/{self.user_folder}"
 
         # 🔥 IMPORTANTE: garante path absoluto no Windows
         return os.path.abspath(self.base_path)
@@ -98,4 +98,3 @@ AWS_REGION = SETTINGS.aws_region
 AWS_ACCESS_KEY_ID = SETTINGS.aws_access_key_id
 AWS_SECRET_ACCESS_KEY = SETTINGS.aws_secret_access_key
 USER_FOLDER = SETTINGS.user_folder
-
