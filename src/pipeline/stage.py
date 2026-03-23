@@ -1,72 +1,53 @@
-from __future__ import annotations
+# src/pipeline/stage.py
 import logging
-from pathlib import Path
-from datetime import datetime
 from pyspark.sql import SparkSession
-from pyspark.sql import functions as F
-from src.utils.spark import build_spark
-from config import SETTINGS
+from pyspark.sql.functions import col
+import os
 
-# Configura logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
-)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def process_clientes(spark: SparkSession):
-    """Lê os dados de clientes do raw"""
-    raw_clientes_path = SETTINGS.raw_clientes
-    logger.info(f"🚀 Lendo clientes de: {raw_clientes_path}")
-    
-    # Para Windows: força leitura local pura
-    df = spark.read.option("mergeSchema", "true").parquet(f"file:///{raw_clientes_path.replace('\\', '/')}")
+# Caminhos dos arquivos Parquet
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "data", "raw"))
+CLIENTES_PATH = os.path.join(BASE_DIR, "clientes", "clientes.parquet")
+ENDERECOS_PATH = os.path.join(BASE_DIR, "enderecos", "enderecos.parquet")
+
+def build_spark(app_name="stage_pipeline_windows"):
+    spark = (
+        SparkSession.builder
+        .appName(app_name)
+        .master("local[*]")
+        .config("spark.sql.warehouse.dir", "C:/tmp")  # diretório temporário Windows
+        .getOrCreate()
+    )
+    return spark
+
+def process_clientes(spark):
+    logger.info(f"Lendo clientes de: {CLIENTES_PATH}")
+    df = spark.read.option("mergeSchema", "true").parquet(CLIENTES_PATH)
     return df
 
-def process_enderecos(spark: SparkSession):
-    """Lê os dados de endereços do raw"""
-    raw_enderecos_path = SETTINGS.raw_enderecos
-    logger.info(f"🚀 Lendo endereços de: {raw_enderecos_path}")
-    
-    # Para Windows: força leitura local pura
-    df = spark.read.option("mergeSchema", "true").parquet(f"file:///{raw_enderecos_path.replace('\\', '/')}")
+def process_enderecos(spark):
+    logger.info(f"Lendo endereços de: {ENDERECOS_PATH}")
+    df = spark.read.option("mergeSchema", "true").parquet(ENDERECOS_PATH)
     return df
 
 def run_stage():
-    """Executa o stage de leitura e escrita dos dados localmente"""
-    data_processamento = datetime.today().strftime("%Y-%m-%d")
-    
-    # Cria SparkSession
-    spark = build_spark(
-        app_name="engenharia_dados_prova_stage",
-        aws_access_key_id=SETTINGS.aws_access_key_id,
-        aws_secret_access_key=SETTINGS.aws_secret_access_key,
-        aws_region=SETTINGS.aws_region
-    )
+    logger.info("Iniciando pipeline stage (Windows friendly)")
+    spark = build_spark()
     logger.info("SparkSession criada com sucesso")
 
-    # Processamento clientes
     clientes = process_clientes(spark)
-    logger.info(f"Clientes lidos: {clientes.count()} registros")
-
-    # Processamento endereços
     enderecos = process_enderecos(spark)
-    logger.info(f"Endereços lidos: {enderecos.count()} registros")
 
-    # Cria diretórios stage locais se não existirem
-    Path(SETTINGS.stage_clientes).mkdir(parents=True, exist_ok=True)
-    Path(SETTINGS.stage_enderecos).mkdir(parents=True, exist_ok=True)
-
-    # Salva parquet stage localmente **particionado por data_processamento**
-    clientes.withColumn("data_processamento", F.lit(data_processamento)) \
-        .write.mode("overwrite").partitionBy("data_processamento") \
-        .parquet(f"file:///{SETTINGS.stage_clientes.replace('\\', '/')}")
+    logger.info("Fazendo join entre clientes e endereços")
+    joined = clientes.join(enderecos, on="cliente_id", how="left")
     
-    enderecos.withColumn("data_processamento", F.lit(data_processamento)) \
-        .write.mode("overwrite").partitionBy("data_processamento") \
-        .parquet(f"file:///{SETTINGS.stage_enderecos.replace('\\', '/')}")
+    logger.info(f"Total de registros após join: {joined.count()}")
+    joined.show(truncate=False)
 
-    logger.info("Stage finalizado com sucesso")
+    spark.stop()
+    logger.info("SparkSession finalizada com sucesso")
 
 if __name__ == "__main__":
     run_stage()

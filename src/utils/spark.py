@@ -55,3 +55,49 @@ def build_spark(app_name: str,
 
     spark = builder.getOrCreate()
     return spark
+
+from pyspark.sql import SparkSession
+
+def build_spark(app_name="engenharia_dados_prova_stage"):
+    spark = (
+        SparkSession
+        .builder
+        .appName(app_name)
+        .master("local[*]")
+        .config("spark.sql.warehouse.dir", "C:/tmp")
+        .config("spark.hadoop.hadoop.home.dir", "C:/hadoop")
+        .config("spark.driver.extraJavaOptions", "-Djava.library.path=C:/hadoop/bin")
+        .getOrCreate()
+    )
+    return spark
+
+from pyspark.sql import SparkSession
+import os
+
+def build_spark(app_name="app", java_home=None, hadoop_home=None):
+    if java_home:
+        os.environ["JAVA_HOME"] = java_home
+    if hadoop_home:
+        os.environ["HADOOP_HOME"] = hadoop_home
+
+    spark = (
+        SparkSession.builder
+        .appName(app_name)
+        .master("local[*]")
+        .config("spark.sql.warehouse.dir", "C:/tmp")  # diretório temporário local
+        .getOrCreate()
+    )
+    return spark
+
+from pyspark.sql import SparkSession
+
+def build_spark(app_name="engenharia_dados_prova_stage"):
+    spark = (
+        SparkSession
+        .builder
+        .appName(app_name)
+        .config("spark.sql.warehouse.dir", "C:/tmp")
+        .master("local[*]")
+        .getOrCreate()
+    )
+    return spark

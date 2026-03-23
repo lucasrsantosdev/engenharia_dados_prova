@@ -1,0 +1,5 @@
+{"linha": 11, "entidade": "enderecos", "campo": "estado", "valor": "SPP", "motivo": "UF inválida (2 letras)"}
+{"linha": 12, "entidade": "enderecos", "campo": "id_cliente", "valor": 999, "motivo": "integridade referencial: id_cliente inexistente em clientes"}
+{"linha": 13, "entidade": "enderecos", "campo": "logradouro", "valor": NaN, "motivo": "campo obrigatório ausente/vazio"}
+{"linha": 14, "entidade": "enderecos", "campo": "numero", "valor": NaN, "motivo": "campo obrigatório ausente/vazio"}
+{"linha": 15, "entidade": "enderecos", "campo": "data_evento", "valor": "2024-01-10", "motivo": "data_evento inválido (YYYY-MM-DD HH:MM:SS)"}
