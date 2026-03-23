@@ -1,52 +1,30 @@
-import logging
-from utils.spark_local import build_spark
-from config import RAW_CLIENTES, RAW_ENDERECOS, STAGE_CLIENTES, STAGE_ENDERECOS, ANALYTICS_CLIENTES
-from pyspark.sql.functions import col, current_date, datediff, to_date, current_timestamp
+from pyspark.sql import SparkSession
+from delta import configure_spark_with_delta_pip
+from pyspark.sql.window import Window
+import pyspark.sql.functions as F
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+spark_builder = SparkSession.builder.appName("stage_pipeline").config(
+    "spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension"
+).config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
 
-def run_stage():
-    logger.info("=== Iniciando pipeline Stage (Windows friendly) ===")
-    spark = build_spark()
+spark = configure_spark_with_delta_pip(spark_builder).getOrCreate()
 
-    # Lê raw
-    logger.info(f"Lendo clientes de: {RAW_CLIENTES}")
-    df_clientes = spark.read.option("mergeSchema", "true").parquet(RAW_CLIENTES)
+# Paths
+RAW_CLIENTES_PATH = "data/raw/clientes/"
+RAW_ENDERECOS_PATH = "data/raw/enderecos/"
+STAGE_CLIENTES_PATH = "data/stage/clientes/"
+STAGE_ENDERECOS_PATH = "data/stage/enderecos/"
 
-    logger.info(f"Lendo endereços de: {RAW_ENDERECOS}")
-    df_enderecos = spark.read.option("mergeSchema", "true").parquet(RAW_ENDERECOS)
+# Clientes SCD1
+df_clientes = spark.read.parquet(RAW_CLIENTES_PATH)
+w_cli = Window.partitionBy("id_cliente").orderBy(F.desc("data_evento"))
+df_clientes_latest = df_clientes.withColumn("rn", F.row_number().over(w_cli)).filter("rn=1").drop("rn")
+df_clientes_latest = df_clientes_latest.withColumn("data_atualizacao", F.current_timestamp())
+df_clientes_latest.write.format("delta").mode("overwrite").save(STAGE_CLIENTES_PATH)
 
-    # Mantém apenas último evento (SCD Type 1)
-    df_clientes_stage = df_clientes.orderBy("data_evento").dropDuplicates(["id_cliente"]) \
-                                   .withColumn("data_atualizacao", current_timestamp())
-    df_enderecos_stage = df_enderecos.orderBy("data_evento").dropDuplicates(["id_endereco"]) \
-                                    .withColumn("data_atualizacao", current_timestamp())
-
-    # Salva stage
-    df_clientes_stage.write.format("delta").mode("overwrite").save(STAGE_CLIENTES)
-    df_enderecos_stage.write.format("delta").mode("overwrite").save(STAGE_ENDERECOS)
-    logger.info(f"Stage concluído: clientes={df_clientes_stage.count()}, endereços={df_enderecos_stage.count()}")
-
-    # --- Analytics ---
-    logger.info("=== Iniciando pipeline Analytics ===")
-
-    # Apenas clientes ativos
-    df_clientes_ativos = df_clientes_stage.filter(col("status") == "ativo")
-
-    # Join LEFT
-    df_join = df_clientes_ativos.join(df_enderecos_stage, on="id_cliente", how="left")
-
-    # Calcula idade
-    df_join = df_join.withColumn("idade", (datediff(current_date(), to_date(col("data_nascimento"))) / 365).cast("int"))
-
-    # Salva analytics
-    df_join.write.mode("overwrite").parquet(ANALYTICS_CLIENTES)
-    logger.info(f"Analytics concluído: total registros={df_join.count()}")
-
-    spark.stop()
-    logger.info("=== Pipeline finalizado com sucesso ===")
-
-
-if __name__ == "__main__":
-    run_stage()
+# Endereços SCD1
+df_enderecos = spark.read.parquet(RAW_ENDERECOS_PATH)
+w_end = Window.partitionBy("id_endereco").orderBy(F.desc("data_evento"))
+df_enderecos_latest = df_enderecos.withColumn("rn", F.row_number().over(w_end)).filter("rn=1").drop("rn")
+df_enderecos_latest = df_enderecos_latest.withColumn("data_atualizacao", F.current_timestamp())
+df_enderecos_latest.write.format("delta").mode("overwrite").save(STAGE_ENDERECOS_PATH)
