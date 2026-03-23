@@ -12,31 +12,19 @@ Construir um pipeline de dados completo para ingestão, processamento incrementa
 engenharia_dados_prova/
 │
 ├── src/
-│   ├── ingestion/
-│   │   └── excel_reader.py
-│   │
-│   ├── pipeline/
-│   │   └── raw_ingestion.py
-│   │
-│   ├── processing/
-│   │   ├── pipeline.py
-│   │   └── validators.py
-│   │
-│   ├── utils/
-│   │   ├── logger.py
-│   │   └── validacoes.py
-│   │
-│   └── infra/
-│       └── spark.py
+│   ├── ingestion/        # Ingestão de dados (Excel → Raw)
+│   ├── pipeline/         # Orquestração e ingestão bruta
+│   ├── processing/       # Processamento e validações
+│   ├── utils/            # Funções auxiliares (logger, validações)
+│   └── infra/            # Configuração Spark
 │
-├── notebooks/
-│   └── 01_ingestao.ipynb
-│
-├── config.py
-├── pipeline.py
-├── requirements.txt
-├── .env
-└── README.md
+├── notebooks/            # Notebooks de exploração
+├── config.py             # Configurações centralizadas
+├── pipeline.py           # Script principal
+├── requirements.txt      # Dependências
+├── .env                  # Variáveis de ambiente
+└── README.md             # Documentação
+
 ```
 
 ---
@@ -247,3 +235,21 @@ O pipeline está preparado para execução completa em ambiente com permissões 
     resultado_athena.csv
 - S3 Athena Results (opcional):
     s3://bkt-dev1-data-avaliacoes/{nome_sobrenome}/athena_results/
+
+    
+
+## Configure o Hadoop (somente Windows):
+Crie a pasta C:/hadoop/bin e coloque winutils.exe nela.
+Configure as variáveis de ambiente:
+
+$env:HADOOP_HOME="C:/hadoop"
+$env:PATH += ";C:/hadoop/bin"
+
+Estrutura de dados
+Raw: src/ingestion/
+Stage: src/pipeline/stage.py salva parquet local em SETTINGS.stage_clientes e SETTINGS.stage_enderecos
+Particionamento: por data_processamento
+Como rodar
+Rodar o stage local (leitura raw → escrita stage):
+
+python -m src.pipeline.stage
