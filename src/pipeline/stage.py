@@ -2,11 +2,9 @@
 
 import os
 import logging
-from pyspark.sql import Window
-from pyspark.sql.functions import row_number, col, desc, current_timestamp
-
+from pyspark.sql import SparkSession
 from src.utils.spark import build_spark
-from config import SETTINGS  # Certifique-se de que config.py está na raiz do projeto
+from config import SETTINGS
 
 # Configura logging
 logging.basicConfig(
@@ -16,30 +14,33 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def process_clientes(spark):
-    """Lê os dados de clientes do raw path"""
-    path_clientes = SETTINGS.raw_clientes
-    if not os.path.exists(path_clientes):
-        raise FileNotFoundError(f"Diretório de clientes não encontrado: {path_clientes}")
-
-    logger.info(f"🚀 Lendo clientes de: {path_clientes}")
-    df = spark.read.parquet(path_clientes)
+def process_clientes(spark: SparkSession):
+    """Lê os dados de clientes do raw local"""
+    raw_clientes_path = SETTINGS.raw_clientes
+    logger.info(f"🚀 Lendo clientes de: {raw_clientes_path}")
+    
+    if not os.path.exists(raw_clientes_path):
+        raise FileNotFoundError(f"Diretório raw de clientes não existe: {raw_clientes_path}")
+    
+    df = spark.read.parquet(raw_clientes_path)
     return df
 
 
-def process_enderecos(spark):
-    """Lê os dados de endereços do raw path"""
-    path_enderecos = SETTINGS.raw_enderecos
-    if not os.path.exists(path_enderecos):
-        raise FileNotFoundError(f"Diretório de endereços não encontrado: {path_enderecos}")
-
-    logger.info(f"🚀 Lendo endereços de: {path_enderecos}")
-    df = spark.read.parquet(path_enderecos)
+def process_enderecos(spark: SparkSession):
+    """Lê os dados de endereços do raw local"""
+    raw_enderecos_path = SETTINGS.raw_enderecos
+    logger.info(f"🚀 Lendo endereços de: {raw_enderecos_path}")
+    
+    if not os.path.exists(raw_enderecos_path):
+        raise FileNotFoundError(f"Diretório raw de endereços não existe: {raw_enderecos_path}")
+    
+    df = spark.read.parquet(raw_enderecos_path)
     return df
 
 
 def run_stage():
-    """Executa o stage de leitura e escrita dos dados"""
+    """Executa o stage de leitura e escrita dos dados localmente"""
+    # Cria SparkSession local
     spark = build_spark(app_name="engenharia_dados_prova_stage")
     logger.info("SparkSession criada com sucesso")
 
@@ -51,16 +52,13 @@ def run_stage():
     enderecos = process_enderecos(spark)
     logger.info(f"Endereços lidos: {enderecos.count()} registros")
 
-    # Cria diretórios stage se não existirem
-    stage_clientes_path = SETTINGS.stage_clientes
-    stage_enderecos_path = SETTINGS.stage_enderecos
+    # Cria diretórios stage locais se não existirem
+    os.makedirs(SETTINGS.stage_clientes, exist_ok=True)
+    os.makedirs(SETTINGS.stage_enderecos, exist_ok=True)
 
-    os.makedirs(stage_clientes_path, exist_ok=True)
-    os.makedirs(stage_enderecos_path, exist_ok=True)
-
-    # Salva parquet stage
-    clientes.write.mode("overwrite").parquet(stage_clientes_path)
-    enderecos.write.mode("overwrite").parquet(stage_enderecos_path)
+    # Salva parquet stage localmente
+    clientes.write.mode("overwrite").parquet(SETTINGS.stage_clientes)
+    enderecos.write.mode("overwrite").parquet(SETTINGS.stage_enderecos)
 
     logger.info("Stage finalizado com sucesso")
 
