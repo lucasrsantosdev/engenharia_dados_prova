@@ -18,25 +18,21 @@ def process_clientes(spark: SparkSession):
     """Lê os dados de clientes do raw"""
     raw_clientes_path = SETTINGS.raw_clientes
     logger.info(f"🚀 Lendo clientes de: {raw_clientes_path}")
-    
-    # Para Windows: força leitura local pura
-    df = spark.read.option("mergeSchema", "true").parquet(f"file:///{raw_clientes_path.replace('\\', '/')}")
+    df = spark.read.option("mergeSchema", "true").parquet(raw_clientes_path)
     return df
 
 def process_enderecos(spark: SparkSession):
     """Lê os dados de endereços do raw"""
     raw_enderecos_path = SETTINGS.raw_enderecos
     logger.info(f"🚀 Lendo endereços de: {raw_enderecos_path}")
-    
-    # Para Windows: força leitura local pura
-    df = spark.read.option("mergeSchema", "true").parquet(f"file:///{raw_enderecos_path.replace('\\', '/')}")
+    df = spark.read.option("mergeSchema", "true").parquet(raw_enderecos_path)
     return df
 
 def run_stage():
     """Executa o stage de leitura e escrita dos dados localmente"""
     data_processamento = datetime.today().strftime("%Y-%m-%d")
     
-    # Cria SparkSession
+    # Cria SparkSession igual ao raw
     spark = build_spark(
         app_name="engenharia_dados_prova_stage",
         aws_access_key_id=SETTINGS.aws_access_key_id,
@@ -59,12 +55,9 @@ def run_stage():
 
     # Salva parquet stage localmente **particionado por data_processamento**
     clientes.withColumn("data_processamento", F.lit(data_processamento)) \
-        .write.mode("overwrite").partitionBy("data_processamento") \
-        .parquet(f"file:///{SETTINGS.stage_clientes.replace('\\', '/')}")
-    
+        .write.mode("overwrite").partitionBy("data_processamento").parquet(SETTINGS.stage_clientes)
     enderecos.withColumn("data_processamento", F.lit(data_processamento)) \
-        .write.mode("overwrite").partitionBy("data_processamento") \
-        .parquet(f"file:///{SETTINGS.stage_enderecos.replace('\\', '/')}")
+        .write.mode("overwrite").partitionBy("data_processamento").parquet(SETTINGS.stage_enderecos)
 
     logger.info("Stage finalizado com sucesso")
 
